@@ -1,0 +1,110 @@
+name: Publish SuperSync Docker Image from Official Repo
+
+on:
+  # Check for new upstream releases every day at 02:00 UTC
+  schedule:
+    - cron: '0 2 * * *'
+  # Trigger when a release is made in THIS repository (if you mirror releases)
+  release:
+    types: [published]
+  # Allows you to manually trigger a build (e.g., for testing or specific tags)
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag or branch to build from official super-productivity repository (e.g., v8.0.0 or master)'
+        required: true
+        default: 'master'
+        type: string
+      force_rebuild:
+        description: 'Force rebuild even if image already exists'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  # Hardcoded repository mapping for this specific instance
+  IMAGE_NAME: warreth/super-sync-server
+
+jobs:
+  build-and-push-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+
+    steps:
+      - name: Determine tag to use
+        id: get_tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "TAG_NAME=${{ github.event.inputs.tag }}" >> $GITHUB_ENV
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            # Automatically fetch the latest release tag from the official upstream repo
+            LATEST_TAG=$(curl -s https://api.github.com/repos/super-productivity/super-productivity/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+            echo "TAG_NAME=$LATEST_TAG" >> $GITHUB_ENV
+            echo "Scheduled run fetched latest upstream tag: $LATEST_TAG"
+          else
+            # For releases in this repo, use the release tag. If you prefer, fetch latest upstream release tag here.
+            echo "TAG_NAME=${{ github.event.release.tag_name || 'master' }}" >> $GITHUB_ENV
+          fi
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check if image needs building
+        id: check_image
+        run: |
+          FORCE_REBUILD="${{ github.event.inputs.force_rebuild || 'false' }}"
+          if [ "$FORCE_REBUILD" = "true" ]; then
+            echo "Force rebuild requested."
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          if docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }} > /dev/null 2>&1; then
+            echo "Image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }} already exists. Skipping build."
+            echo "should_build=false" >> $GITHUB_OUTPUT
+          else
+            echo "Image does not exist. Proceeding with build."
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout official super-productivity repository
+        if: steps.check_image.outputs.should_build == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: super-productivity/super-productivity
+          ref: ${{ env.TAG_NAME }}
+
+      - name: Set up Docker Buildx
+        if: steps.check_image.outputs.should_build == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata (tags, labels) for Docker
+        if: steps.check_image.outputs.should_build == 'true'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # Apply the tag fetched from the official repo
+          tags: |
+            type=raw,value=${{ env.TAG_NAME }}
+            type=raw,value=latest,enable=${{ env.TAG_NAME != 'master' && env.TAG_NAME != '' }}
+
+      - name: Build and push Docker image
+        if: steps.check_image.outputs.should_build == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          # Context is the root of the repository as indicated by docker-compose.build.yml
+          context: .
+          file: packages/super-sync-server/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
