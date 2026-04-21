@@ -51,6 +51,10 @@ services:
       - "${PORT:-1900}:${PORT:-1900}"
     env_file:
       - .env
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     depends_on:
       postgres:
         condition: service_healthy
@@ -63,6 +67,8 @@ services:
       - .env
     volumes:
       - ./postgres_data:/var/lib/postgresql/data
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-syncuser} -d ${POSTGRES_DB:-sync_db}"]
       interval: 5s
@@ -72,7 +78,9 @@ services:
 
 ### 3. Starting the Server
 
-Run the following command to download the latest container image and start the setup:
+Create the database folder manually first (to ensure Docker doesn't incorrectly create it as root), then run the following command to download the latest container image and start the setup:
+
 ```bash
+mkdir ./postgres_data
 docker compose up -d
 ```
