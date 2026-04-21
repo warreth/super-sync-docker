@@ -58,7 +58,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=${PORT:-1900}
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-supersync}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@supersync_postgres:5432/${POSTGRES_DB:-supersync}
       - JWT_SECRET=${JWT_SECRET}
       - PUBLIC_URL=${PUBLIC_URL}
       - CORS_ORIGINS=${CORS_ORIGINS:-https://app.super-productivity.com}
@@ -98,6 +98,7 @@ networks:
 > [!IMPORTANT]
 > - PostgreSQL data persists in `./postgres_data`.
 > - Set tag to :master to try out beta versions (untested)
+> - By default, the database accesses via the container name `supersync_postgres` to avoid DNS collisions on shared proxy networks (like Caddy).
 
 ### 3. Start
 
