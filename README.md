@@ -37,6 +37,9 @@ POSTGRES_DB=supersync
 PORT=1900
 PUBLIC_URL=https://sync.your-domain.com
 CORS_ORIGINS=https://app.super-productivity.com
+
+# WebAuthn/Passkeys Configuration. MUST BE SAME AS WEB-URL!
+WEBAUTHN_RP_ID=sync.your-domain.com
 ```
 
 Notes:
@@ -62,6 +65,9 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - PUBLIC_URL=${PUBLIC_URL}
       - CORS_ORIGINS=${CORS_ORIGINS:-https://app.super-productivity.com}
+      - WEBAUTHN_RP_ID=${WEBAUTHN_RP_ID}
+      - WEBAUTHN_RP_NAME="Super Productivity Sync"
+      - WEBAUTHN_ORIGIN=${PUBLIC_URL}
     ports:
       - "${PORT:-1900}:${PORT:-1900}"
     depends_on:
