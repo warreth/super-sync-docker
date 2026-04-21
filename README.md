@@ -52,7 +52,7 @@ Use the root `compose.yml`:
 ```yaml
 services:
   supersync:
-    image: ghcr.io/warreth/super-sync-server:master
+    image: ghcr.io/warreth/super-sync-server:latest
     container_name: supersync
     command: sh -c "npx prisma db push --accept-data-loss && npm start"
     environment:
@@ -95,8 +95,9 @@ networks:
   default:
 ```
 
-Important:
- - PostgreSQL data persists in `./postgres_data`.
+> [!IMPORTANT]
+> - PostgreSQL data persists in `./postgres_data`.
+> - Set tag to :master to try out beta versions (untested)
 
 ### 3. Start
 
