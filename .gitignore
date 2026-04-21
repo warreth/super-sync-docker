@@ -1,0 +1,3 @@
+test-deploy/
+.env
+postgres_data/

@@ -1,86 +1,114 @@
 # SuperSync Docker Deployment
 
-This repository contains the GitHub Actions workflow and Docker Compose configuration to automate the deployment of the `super-sync-server` for Super Productivity.
+This repository provides:
 
-## CI/CD GitHub Action Automation
+1. A GitHub Actions workflow to build and publish Super Sync images to GHCR.
+2. A production-ready Docker Compose setup for running Super Sync with PostgreSQL.
 
-The custom GitHub Action in this repository stays in sync with the upstream code by:
-1. **Daily Checks**: Checking the [official repository releases](https://github.com/super-productivity/super-productivity/releases) once a day at 2 AM UTC.
-2. **Publishing**: If it's a new tag, it pulls down the official source code, builds the container, and publishes it seamlessly to GitHub Container Registry. 
+## CI/CD Automation
 
-## Setup Instructions
+The workflow tracks official upstream releases from:
 
-### 1. Environment Variables
+https://github.com/super-productivity/super-productivity/releases
 
-We use an `.env` file to manage configuration for both the database and the backend. Create an `.env` file and populate it with the following:
+Behavior:
+
+1. Checks for upstream updates on schedule.
+2. Builds from official upstream source/tag.
+3. Publishes container images to GHCR.
+
+## Production Deployment
+
+### 1. Configure .env
+
+Use the root `.env` file:
 
 ```env
-POSTGRES_USER=syncuser
-POSTGRES_PASSWORD=syncpassword
-POSTGRES_DB=sync_db
+# Required secrets
+# Generate with: openssl rand -base64 32
+JWT_SECRET=replace-with-a-random-secret
+POSTGRES_PASSWORD=replace-with-a-strong-password
 
-# Required for server
+# Database
+POSTGRES_USER=postgres
+POSTGRES_DB=supersync
+
+# Server
 PORT=1900
-DATABASE_URL=postgresql://syncuser:syncpassword@postgres:5432/sync_db
-JWT_SECRET=change_this_to_a_minimum_32_character_secret_key!
-PUBLIC_URL=http://localhost:1900
+PUBLIC_URL=https://sync.your-domain.com
 CORS_ORIGINS=https://app.super-productivity.com
 ```
 
-**Important Configuration Steps:**
+Notes:
 
-* **`JWT_SECRET`**: Must be a secure random string (minimum 32 characters). You can generate one quickly in your terminal using:
+1. `JWT_SECRET` should be a strong random value (minimum 32 chars).
+2. `PUBLIC_URL` is the external URL users access.
+3. `CORS_ORIGINS` controls browser-origin access only.
 
-  ```bash
-  openssl rand -base64 32
-  ```
-* **`PUBLIC_URL`**: Update this to match the actual public deployment URL of your sync server (e.g., `https://sync.yourdomain.com`).
-* **`CORS_ORIGINS`**: Define which web domains are allowed to access your sync server. Use `https://app.super-productivity.com` if using the official web app, your own domain if self-hosting the web client, or you can remove it if you are exclusively using the desktop/mobile apps.
+### 2. Production compose.yml
 
-
-### 2. Docker Compose Configuration
-
-Ensure you have your `compose.yml` file matching this setup so it pulls the correct image and connects to the `.env` file:
+Use the root `compose.yml`:
 
 ```yaml
 services:
   supersync:
-    image: ghcr.io/warreth/super-sync-server:latest
+    image: ghcr.io/warreth/super-sync-server:master
     container_name: supersync
+    command: sh -c "npx prisma db push --accept-data-loss && npm start"
+    environment:
+      - NODE_ENV=production
+      - PORT=${PORT:-1900}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-supersync}
+      - JWT_SECRET=${JWT_SECRET}
+      - PUBLIC_URL=${PUBLIC_URL}
+      - CORS_ORIGINS=${CORS_ORIGINS:-https://app.super-productivity.com}
     ports:
       - "${PORT:-1900}:${PORT:-1900}"
-    env_file:
-      - .env
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
     depends_on:
       postgres:
         condition: service_healthy
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - default
 
   postgres:
     image: postgres:15-alpine
     container_name: supersync_postgres
-    env_file:
-      - .env
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-supersync}
     volumes:
       - ./postgres_data:/var/lib/postgresql/data
-    security_opt:
-      - no-new-privileges:true
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-syncuser} -d ${POSTGRES_DB:-sync_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-supersync}"]
       interval: 5s
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
 
-### 3. Starting the Server
+networks:
+  default:
+```
 
-Create the database folder manually first (to ensure Docker doesn't incorrectly create it as root), then run the following command to download the latest container image and start the setup:
+Important:
+ - PostgreSQL data persists in `./postgres_data`.
+
+### 3. Start
+
+From repo root:
 
 ```bash
-mkdir ./postgres_data
-docker compose up -d
+mkdir -p ./postgres_data
+docker compose -f compose.yml up -d
+```
+
+Check logs:
+
+```bash
+docker compose -f compose.yml logs -f
 ```
