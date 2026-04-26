@@ -40,13 +40,20 @@ CORS_ORIGINS=https://app.super-productivity.com
 
 # WebAuthn/Passkeys Configuration. MUST BE SAME AS WEB-URL!
 WEBAUTHN_RP_ID=sync.your-domain.com
+
+# SMTP / Email Configuration (Required in production)
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-smtp-username
+SMTP_PASS=your-smtp-password
+SMTP_FROM="Super Productivity Sync"
 ```
 
-Notes:
-
-1. `JWT_SECRET` should be a strong random value (minimum 32 chars).
-2. `PUBLIC_URL` is the external URL users access.
-3. `CORS_ORIGINS` controls browser-origin access only.
+> [!NOTE]
+> 1. `JWT_SECRET` should be a strong random value (minimum 32 chars).
+> 2. `PUBLIC_URL` is the external URL users access.
+> 3. **Self-hosting / Fake SMTP for testing:** If you don't have a real SMTP server and just want to test or self-host without a valid email sender, you can use [SMTP Bucket](https://www.smtpbucket.com/). To do this, configure: `SMTP_HOST=mail.smtpbucket.com`, `SMTP_PORT=8025`, and **leave `SMTP_USER` and `SMTP_PASS` entirely blank**. Then, simply open the SMTP Bucket website to read the verification emails sent to your users/yourself using the search feature.
 
 ### 2. Production compose.yml
 
@@ -68,6 +75,12 @@ services:
       - WEBAUTHN_RP_ID=${WEBAUTHN_RP_ID}
       - WEBAUTHN_RP_NAME="Super Productivity Sync"
       - WEBAUTHN_ORIGIN=${PUBLIC_URL}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_SECURE=${SMTP_SECURE}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM}
     ports:
       - "${PORT:-1900}:${PORT:-1900}"
     depends_on:
@@ -104,7 +117,6 @@ networks:
 > [!IMPORTANT]
 > - PostgreSQL data persists in `./postgres_data`.
 > - Set tag to :master to try out beta versions (untested)
-> - By default, the database accesses via the container name `supersync_postgres` to avoid DNS collisions on shared proxy networks (like Caddy).
 
 ### 3. Start
 
