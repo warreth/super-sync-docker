@@ -1,3 +1,5 @@
+[![Total downloads](https://img.shields.io/badge/dynamic/json?label=Total%20downloads&url=https://ipitio.github.io/backage/warreth/super-sync-docker.json&query=$.package.downloads&color=blue)](https://github.com/warreth/super-sync-docker/packages)
+
 # SuperSync Docker Deployment
 
 This repository provides:
