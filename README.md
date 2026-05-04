@@ -1,4 +1,5 @@
-[![Total downloads](https://img.shields.io/badge/dynamic/json?label=Total%20downloads&url=https://ipitio.github.io/backage/warreth/super-sync-docker.json&query=$.package.downloads&color=blue)](https://github.com/warreth/super-sync-docker/packages)
+![Docker Downloads](https://img.shields.io/badge/dynamic/json?label=Total%20Downloads&url=https://ipitio.github.io/backage/warreth/super-sync-docker/super-sync-docker.json&query=$.downloads&color=blue)
+![Docker Daily Downloads](https://img.shields.io/badge/dynamic/json?label=Daily%20Downloads&url=https://ipitio.github.io/backage/warreth/super-sync-docker/super-sync-docker.json&query=$.downloads_day&color=teal)
 
 # SuperSync Docker Deployment
 
