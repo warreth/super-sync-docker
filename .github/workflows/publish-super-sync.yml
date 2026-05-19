@@ -67,7 +67,7 @@ jobs:
             echo "should_build=true" >> $GITHUB_OUTPUT
             exit 0
           fi
-          
+
           if docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }} > /dev/null 2>&1; then
             echo "Image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TAG_NAME }} already exists. Skipping build."
             echo "should_build=false" >> $GITHUB_OUTPUT
@@ -82,6 +82,12 @@ jobs:
         with:
           repository: super-productivity/super-productivity
           ref: ${{ env.TAG_NAME }}
+
+      - name: Set up QEMU
+        if: steps.check_image.outputs.should_build == 'true'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
 
       - name: Set up Docker Buildx
         if: steps.check_image.outputs.should_build == 'true'
@@ -105,6 +111,7 @@ jobs:
           # Context is the root of the repository as indicated by docker-compose.build.yml
           context: .
           file: packages/super-sync-server/Dockerfile
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
